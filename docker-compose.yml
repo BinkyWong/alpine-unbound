@@ -1,12 +1,37 @@
-version: '3.7'
 services:
-
   unbound-app:
-    image: unbound
+    build: .
+    image: unbound:latest
     container_name: unbound-app
     ports:
-      - "192.168.0.14:5335:53/tcp"
-      - "192.168.0.14:5335:53/udp"            
+      - "192.168.0.25:5335:53/tcp" # change the IP to suit your own needs
+      - "192.168.0.25:5335:53/udp"
     cap_add:
-      - NET_ADMIN 
-    restart: always
+      - NET_ADMIN
+      - NET_RAW  # For ICMP/ping functionality if needed
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "dig", "@127.0.0.1", "-p", "35", "google.com", "+short", "||", "exit", "1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ./unbound.conf:/etc/unbound/unbound.conf:ro
+      - unbound-data:/etc/unbound/data
+    networks:
+      dns_network:
+        ipv4_address: 172.20.0.2  # Optional: fixed IP in custom network
+
+networks:
+  dns_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/24
+
+volumes:
+  unbound-data:
